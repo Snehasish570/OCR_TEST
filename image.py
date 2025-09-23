@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 from paddleocr import PaddleOCR
 import json
-from PIL import Image, ImageDraw, ImageFont
+
 
 
 def enhance_for_ocr(image_path, output_path="enhanced.png"):
