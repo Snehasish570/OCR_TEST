@@ -1,27 +1,9 @@
-from flask import Flask, request, jsonify, render_template
-from PIL import Image
-from paddleocr import PaddleOCR
-import io
-import numpy as np
-import base64
-import time
-import json
-
-app = Flask(__name__)
-
-@app.route("/")
-def index():
-    return render_template("index.html")
-
-
 from flask import Flask, request, jsonify
 from PIL import Image
 from paddleocr import PaddleOCR
 import io
 import numpy as np
 import base64
-import time
-import json
 import uuid   
 
 app = Flask(__name__)
@@ -67,6 +49,7 @@ def upload():
 
     if texts:
         response["ocr_result"] = "  ".join(texts)
+        response["msg"] = " Text detected"
         response["remark"] = "success"
     else:
         response["msg"] = "⚠️ No text detected"
