@@ -5,7 +5,7 @@ import re
 from flask import Flask, request, jsonify, render_template
 from PIL import Image
 from paddleocr import PaddleOCR
-import io
+from statistics import median
 import numpy as np
 import base64
 import uuid
@@ -47,7 +47,7 @@ def upload():
         return jsonify(response)
 
     # Create unique txn_id
-    txn_id = data.get("txn_id", "txn")
+    txn_id = data.get("txn_id")
     txn_folder = f"{txn_id}_{str(uuid.uuid4())[:4]}"
     response["txn_id"] = txn_folder
 
@@ -68,6 +68,7 @@ def upload():
         "output_ocr_image": os.path.join(dirs["output"], "OCR_IMAGE"),
         "output_processed_image": os.path.join(dirs["output"], "PROCESSED_IMAGE"),
         "output_ocr_text": os.path.join(dirs["output"], "OCR_TEXT"),
+        "output_sorted_text":os.path.join(dirs["output"],"sorted_text")
     }
 
     # Create folders if not exist
@@ -80,7 +81,7 @@ def upload():
     with open(input_img_path, "wb") as f:
         f.write(img_data)
 
-    img = Image.open(io.BytesIO(img_data)).convert("RGB")
+    
 
     # Save request JSON
     req_json_path = os.path.join(subdirs["input_request"], "input.json")
@@ -181,6 +182,82 @@ def upload():
     boxes = image_results["rec_polys"]   # ✅ polygon coordinates
     texts = image_results["rec_texts"]   # ✅ recognized texts
 
+
+    #sorted text
+        
+    def words_maker(boxes, texts):
+        words = []
+        for bbox, text in zip(boxes, texts):
+            xs = [x for x, y in bbox]
+            ys = [y for x, y in bbox]
+            x_min, x_max = min(xs), max(xs)
+            y_center = (min(ys) + max(ys)) / 2
+            height = max(ys) - min(ys)
+            words.append({
+                "text": text,
+                "x_min": x_min,
+                "y_center": y_center,
+                "height": height if height > 0 else None
+            })
+        return words
+
+    def cluster_lines(words, multiplier=0.7, min_threshold=10):
+        if not words:
+            return []
+
+        heights = [w["height"] for w in words if w["height"]]
+        med_h = median(heights) if heights else 5
+        threshold = max(med_h * multiplier, min_threshold)
+
+        # Sort by vertical position
+        words_sorted = sorted(words, key=lambda w: w["y_center"])
+
+        lines = []
+        current_line = [words_sorted[0]]
+        current_y = words_sorted[0]["y_center"]
+
+        for w in words_sorted[1:]:
+            if abs(w["y_center"] - current_y) <= threshold:
+                current_line.append(w)
+                current_y = (current_y * (len(current_line) - 1) + w["y_center"]) / len(current_line)
+            else:
+                lines.append(current_line)
+                current_line = [w]
+                current_y = w["y_center"]
+
+        if current_line:
+            lines.append(current_line)
+
+        return lines
+
+    def build_text(lines):
+        out = []
+        for line in lines:
+            # Sort each line by x position
+            line_sorted = sorted(line, key=lambda w: w["x_min"])
+            text_line = " ".join([w["text"] for w in line_sorted])
+            out.append(text_line)
+        return "\n".join(out)
+
+    def main(boxes, texts, output):
+        words = words_maker(boxes, texts)
+        lines = cluster_lines(words)
+        sorted_text = build_text(lines)
+
+        # Write to file
+        with open(output, "w", encoding="utf-8") as f:
+            f.write(sorted_text)
+        
+        
+        return sorted_text
+
+    # Run main and save output
+    if boxes and texts:
+        main(boxes, texts, f"{txn_folder}/Output/sorted_text/sorted_output.txt")
+    else:
+        print("No OCR results found.")
+
+
     # Open image
     image = Image.open(deskewed_path).convert("RGB")
     draw = ImageDraw.Draw(image)
@@ -221,6 +298,7 @@ def upload():
     response["doc_type"]=doc_name
     
     response["ocr_result"]=response["ocr_result"].replace("\n"," ")
+
     # Save response JSON
     response_json_path = os.path.join(subdirs["output_response"], "output.json")
     with open(response_json_path, "w", encoding="utf-8") as f:
