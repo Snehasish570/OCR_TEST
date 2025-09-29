@@ -1,6 +1,6 @@
 import os
 import json
-from datetime import datetime
+
 import re
 from flask import Flask, request, jsonify, render_template
 from PIL import Image
@@ -176,11 +176,11 @@ def upload():
         response["remark"] = "failed"
         response["doc_type"] = "Unknown Document"
 
-    #for drawing ocr boxes on image
     
-    image_results = results[0]   # dict output
-    boxes = image_results["rec_polys"]   # ✅ polygon coordinates
-    texts = image_results["rec_texts"]   # ✅ recognized texts
+    
+    image_results = results[0]  
+    boxes = image_results["rec_polys"]  
+    texts = image_results["rec_texts"]   
 
 
     #sorted text
