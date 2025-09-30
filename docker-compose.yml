@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  api1:
+    build: ./api1
+    container_name: api1
+    image: api1_image
+    ports:
+      - "5001:5001"   # Expose API 1 to host
+
+  api2:
+    build: ./api2
+    container_name: api2
+    image: api2_image
+    ports:
+      - "6001:6001"
+    
