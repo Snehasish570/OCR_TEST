@@ -1,0 +1,1 @@
+using compose in dcoker and call the redis 
