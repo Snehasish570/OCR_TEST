@@ -1,0 +1,10 @@
+version: "3.9"
+
+services:
+  web:
+    build: .
+    image: nginx1
+    container_name: nginx_ubuntu_compose
+    ports:
+      - "8080:80"
+    restart: always
